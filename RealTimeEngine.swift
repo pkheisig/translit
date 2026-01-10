@@ -90,10 +90,7 @@ class EventTapManager {
             if hasCmd == wantCmd && hasOpt == wantOpt && hasShift == wantShift && hasCtrl == wantCtrl {
                 self.isEnabled.toggle()
                 debugLog("EventTapManager: HOTKEY DETECTED! New state: \(self.isEnabled)")
-                DispatchQueue.main.async {
-                    (NSApp.delegate as? AppDelegate)?.updateStatusIcon()
-                    (NSApp.delegate as? AppDelegate)?.updateMenuState()
-                }
+                NotificationCenter.default.post(name: Notification.Name("TranslitToggled"), object: nil)
                 return nil
             }
         }
@@ -157,8 +154,18 @@ class EventTapManager {
             }
         }
         
-        // No match, pass through but update buffer
-        typedBuffer += newChar.lowercased()
+        // No match found
+        // Only block Latin letters not used in transliteration (w, x, q)
+        let blockedChars = Set("wxq")
+        let charLower = newChar.lowercased()
+        
+        if charLower.count == 1, let c = charLower.first, blockedChars.contains(c) {
+            debugLog("EventTapManager: BLOCKED unused char: '\(newChar)'")
+            return nil
+        }
+        
+        // Pass through numbers, symbols, and valid letters that might start a sequence
+        typedBuffer += charLower
         if typedBuffer.count > 10 { typedBuffer.removeFirst() }
         debugLog("EventTapManager: No match. Buffer updated: '\(typedBuffer)'")
         

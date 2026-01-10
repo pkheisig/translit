@@ -55,11 +55,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusIcon()
         setupMenu()
         
+        NotificationCenter.default.addObserver(self, selector: #selector(handleToggleNotification), name: Notification.Name("TranslitToggled"), object: nil)
+        
         let trusted = checkPermissions()
         debugLog("AppDelegate: Initial permission check = \(trusted)")
         
         EventTapManager.shared.start()
         AppState.shared.updateShortcut()
+    }
+    
+    @objc func handleToggleNotification() {
+        updateStatusIcon()
+        updateMenuState()
     }
     
     func checkPermissions() -> Bool {
