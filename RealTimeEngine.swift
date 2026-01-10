@@ -26,7 +26,7 @@ public func debugLog(_ message: String) {
 
 class EventTapManager {
     static let shared = EventTapManager()
-    var isEnabled = true
+    var isEnabled = false
     private var eventTap: CFMachPort?
     private var typedBuffer = "" 
     
