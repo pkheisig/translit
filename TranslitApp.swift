@@ -210,39 +210,107 @@ struct GeneralSettingsView: View {
     ]
 }
 
+struct MappingItem: Identifiable, Equatable {
+    let id = UUID()
+    var latin: String
+    var cyrillic: String
+}
+
+class MappingStore: ObservableObject {
+    @Published var items: [MappingItem] = []
+    
+    init() { reload() }
+    
+    func reload() {
+        // Load and wrap in MappingItem
+        items = Transliterater.mapping.map { MappingItem(latin: $0.0, cyrillic: $0.1) }
+    }
+    
+    func save() {
+        // Filter out empty entries
+        let validItems = items.filter { !$0.latin.isEmpty && !$0.cyrillic.isEmpty }
+        let newMapping = validItems.map { ($0.latin, $0.cyrillic) }
+        Transliterater.save(newMapping: newMapping)
+        reload() // Reloads and sorts
+    }
+    
+    func reset() {
+        Transliterater.resetToDefaults()
+        reload()
+    }
+    
+    func addItem() {
+        // Insert at top for visibility
+        items.insert(MappingItem(latin: "", cyrillic: ""), at: 0)
+    }
+    
+    func delete(id: UUID) {
+        items.removeAll { $0.id == id }
+    }
+}
+
 struct MappingView: View {
-    let mapping = Transliterater.mapping.sorted { $0.0 < $1.0 }
+    @StateObject private var store = MappingStore()
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Mapping Table")
-                .font(.headline)
-                .padding(.top)
-                .padding(.horizontal)
-            
-            List {
-                HStack {
-                    Text("Latin")
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("Cyrillic")
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Latin")
+                    .font(.headline)
+                    .frame(width: 120, alignment: .leading)
+                Text("Cyrillic")
+                    .font(.headline)
+                    .frame(width: 80, alignment: .leading)
+                Spacer()
+                Button(action: store.addItem) {
+                    Label("Add", systemImage: "plus")
                 }
-                .padding(.vertical, 5)
-                
-                ForEach(mapping, id: \.0) { item in
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            // List
+            List {
+                ForEach($store.items) { $item in
                     HStack {
-                        Text(item.0)
+                        TextField("latin", text: $item.latin)
+                            .frame(width: 120)
+                            .textFieldStyle(.roundedBorder)
                             .font(.system(.body, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(item.1)
-                            .font(.system(.body, design: .serif))
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        TextField("cyrillic", text: $item.cyrillic)
+                            .frame(width: 80)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        Spacer()
+                        
+                        Button(action: { store.delete(id: item.id) }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .padding(.vertical, 2)
                 }
             }
             .listStyle(.plain)
+            
+            // Footer Actions
+            HStack {
+                Button("Reset to Defaults") {
+                    store.reset()
+                }
+                
+                Spacer()
+                
+                Button("Save Changes") {
+                    store.save()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
         }
     }
 }
